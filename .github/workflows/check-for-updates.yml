@@ -1,0 +1,76 @@
+# .github/workflows/check-for-updates.yml
+
+name: Check for Caddy Updates
+
+on:
+  # 定时任务：每天凌晨4点 (UTC) 运行一次
+  schedule:
+    - cron: '0 4 * * *'
+  
+  # 手动触发：允许你在 Actions 页面手动运行此检查
+  workflow_dispatch:
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    
+    # 授予工作流向仓库写入内容的权限
+    permissions:
+      contents: write # 必须有这个权限才能提交和推送代码
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get current Caddy version from Dockerfile
+        id: current_version
+        # 从 Dockerfile 中提取版本号。
+        # 我们查找 `FROM caddy:` 开头的行，取第一行，然后提取版本号部分。
+        run: |
+          VERSION=$(grep 'FROM caddy:' Dockerfile | head -n 1 | cut -d':' -f2 | cut -d'-' -f1)
+          echo "Current version in Dockerfile: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get latest Caddy version from GitHub API
+        id: latest_version
+        # 使用 GitHub API 获取 caddyserver/caddy 仓库的最新 Release
+        # jq 用来解析 JSON 响应，-r 表示输出原始字符串
+        run: |
+          # 我们需要安装 jq 工具
+          sudo apt-get update && sudo apt-get install -y jq
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/caddyserver/caddy/releases/latest" | jq -r .tag_name)
+          # Caddy 的 tag 通常是 "v2.7.6" 这样的格式，我们需要去掉 'v'
+          VERSION=${LATEST_TAG#v}
+          echo "Latest official Caddy version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compare versions and update Dockerfile if needed
+        # 仅当检测到的最新版本和当前版本不同时才运行此步骤
+        if: steps.latest_version.outputs.version != steps.current_version.outputs.version
+        run: |
+          echo "New Caddy version found: ${{ steps.latest_version.outputs.version }}. Updating Dockerfile."
+          
+          # 使用 sed 命令替换 Dockerfile 中的旧版本号为新版本号
+          # -i 表示直接修改文件
+          sed -i 's/caddy:${{ steps.current_version.outputs.version }}/caddy:${{ steps.latest_version.outputs.version }}/g' Dockerfile
+          
+          echo "Dockerfile updated. Committing changes."
+          
+          # 配置 Git 用户信息，这样才能提交
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # 将修改后的 Dockerfile 添加到暂存区
+          git add Dockerfile
+          
+          # 提交更改，提交信息中包含新版本号
+          git commit -m "chore: Bump Caddy to v${{ steps.latest_version.outputs.version }}"
+          
+          # 将更改推送到远程仓库
+          git push
+
+      - name: No update needed
+        # 如果版本相同，则打印一条消息，工作流正常结束
+        if: steps.latest_version.outputs.version == steps.current_version.outputs.version
+        run: |
+          echo "Caddy is already up to date. Current version: ${{ steps.current_version.outputs.version }}"
