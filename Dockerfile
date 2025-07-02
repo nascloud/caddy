@@ -5,9 +5,9 @@
 FROM caddy:2.7.6-builder AS builder
 
 # 添加你需要的 DNS 插件
-RUN xcaddy build --with github.com/caddy-dns/dnspod \
-                 --with github.com/caddy-dns/cloudflare \
-                 --with github.com/caddy-dns/alidns
+RUN xcaddy build --with github.com/caddy-dns/dnspod@latest \
+                 --with github.com/caddy-dns/cloudflare@latest \
+                 --with github.com/caddy-dns/alidns@latest
 
 # 第二阶段：使用 Caddy 官方的运行时镜像
 FROM caddy:2.7.6
