@@ -4,7 +4,7 @@
 FROM caddy:2.10.0-builder AS builder
 
 # 添加你需要的 DNS 插件
-RUN xcaddy build --with github.com/caddy-dns/dnspod@1fb64108d4debf196b19d7398e763cb78c8a0f41 \
+RUN xcaddy build --with github.com/libdns/tencentcloud \
                  --with github.com/caddy-dns/cloudflare \
                  --with github.com/caddy-dns/alidns
 
