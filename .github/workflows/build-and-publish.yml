@@ -57,7 +57,7 @@ jobs:
           context: .
           push: true
           # 构建 amd64 和 arm64 两个平台的镜像
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/armhf
           # 使用上一步生成的标签
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
